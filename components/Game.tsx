@@ -56,7 +56,11 @@ const Game: React.FC<GameProps> = ({ onBack }) => {
         if (!gameContainerRef.current) return;
         const containerRect = gameContainerRef.current.getBoundingClientRect();
         
-        setPaddleX(containerRect.width / 2);
+        // Set paddle to center, but apply constraints
+        const centerX = containerRect.width / 2;
+        const halfPaddleWidth = PADDLE_WIDTH / 2;
+        const constrainedPaddleX = Math.max(halfPaddleWidth, Math.min(centerX, containerRect.width - halfPaddleWidth));
+        setPaddleX(constrainedPaddleX);
         
         const initialDx = (Math.random() > 0.5 ? 1 : -1) * 4;
 
@@ -90,7 +94,11 @@ const Game: React.FC<GameProps> = ({ onBack }) => {
     const updatePaddlePosition = useCallback((clientX: number) => {
         if (gameContainerRef.current) {
             const containerRect = gameContainerRef.current.getBoundingClientRect();
-            setPaddleX(clientX - containerRect.left);
+            const rawX = clientX - containerRect.left;
+            // Apply the same constraints as in the Paddle component
+            const halfPaddleWidth = PADDLE_WIDTH / 2;
+            const constrainedX = Math.max(halfPaddleWidth, Math.min(rawX, containerRect.width - halfPaddleWidth));
+            setPaddleX(constrainedX);
         }
     }, []);
 
@@ -160,31 +168,36 @@ const Game: React.FC<GameProps> = ({ onBack }) => {
             x += dx;
             y += dy;
 
-            // Wall collision
-            if (x - BALL_SIZE / 2 < 0 || x + BALL_SIZE / 2 > containerWidth) {
+            // Wall collision - use proper ball center calculations
+            if (x <= BALL_SIZE / 2 || x >= containerWidth - BALL_SIZE / 2) {
                 dx = -dx;
+                // Keep ball within bounds
+                x = Math.max(BALL_SIZE / 2, Math.min(x, containerWidth - BALL_SIZE / 2));
             }
-            if (y - BALL_SIZE / 2 < 0) {
+            if (y <= BALL_SIZE / 2) {
                 dy = -dy;
+                y = BALL_SIZE / 2;
             }
 
             // Paddle collision
-            const paddleLeft = paddleX - PADDLE_WIDTH / 2;
-            const paddleRight = paddleX + PADDLE_WIDTH / 2;
+            const halfPaddleWidth = PADDLE_WIDTH / 2;
+            // Use the same constraint logic as the Paddle component
+            const constrainedPaddleCenterX = Math.max(halfPaddleWidth, Math.min(paddleX, containerWidth - halfPaddleWidth));
+            const paddleLeft = constrainedPaddleCenterX - halfPaddleWidth;
+            const paddleRight = constrainedPaddleCenterX + halfPaddleWidth;
             const paddleTop = containerHeight - PADDLE_HEIGHT - 30;
 
             if (
-                y + BALL_SIZE / 2 > paddleTop &&
-                y - BALL_SIZE / 2 < paddleTop + PADDLE_HEIGHT &&
-                x + BALL_SIZE / 2 > paddleLeft &&
-                x - BALL_SIZE / 2 < paddleRight
+                y + BALL_SIZE / 2 >= paddleTop &&
+                y - BALL_SIZE / 2 <= paddleTop + PADDLE_HEIGHT &&
+                x + BALL_SIZE / 2 >= paddleLeft &&
+                x - BALL_SIZE / 2 <= paddleRight &&
+                dy > 0 // Only bounce if ball is moving downward
             ) {
-                if (dy > 0) {
-                    dy = -dy;
-                    const hitPos = (x - paddleX) / (PADDLE_WIDTH / 2);
-                    dx = hitPos * 5; 
-                    y = paddleTop - BALL_SIZE / 2;
-                }
+                dy = -dy;
+                const hitPos = (x - constrainedPaddleCenterX) / halfPaddleWidth;
+                dx = hitPos * 5; 
+                y = paddleTop - BALL_SIZE / 2; // Ensure ball doesn't get stuck in paddle
             }
 
             // Lose a life
