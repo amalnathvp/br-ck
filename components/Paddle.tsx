@@ -10,14 +10,16 @@ export const PADDLE_HEIGHT = 20; // in pixels
 
 const Paddle: React.FC<PaddleProps> = ({ x, containerWidth }) => {
   const halfPaddleWidth = PADDLE_WIDTH / 2;
-  // Constrain paddle within the game container
-  const constrainedX = Math.max(0, Math.min(x - halfPaddleWidth, containerWidth - PADDLE_WIDTH));
+  // Constrain paddle center within the game container bounds
+  const constrainedCenterX = Math.max(halfPaddleWidth, Math.min(x, containerWidth - halfPaddleWidth));
+  // Calculate left position from the constrained center
+  const leftPosition = constrainedCenterX - halfPaddleWidth;
 
   return (
     <div
       className="absolute bg-white rounded-md shadow-lg"
       style={{
-        left: `${constrainedX}px`,
+        left: `${leftPosition}px`,
         bottom: '30px', // Position from the bottom
         width: `${PADDLE_WIDTH}px`,
         height: `${PADDLE_HEIGHT}px`,
